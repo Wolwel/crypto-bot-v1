@@ -1,10 +1,13 @@
 import os
-from dotenv import load_dotenv
+import sys
+import logging
 import asyncio
 import httpx
+from aiohttp import web
+from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters import CommandStart  # Тільки фільтри
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton # Тільки типи
+from aiogram.filters import CommandStart  
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
@@ -91,8 +94,28 @@ async def help_handler(message: types.Message):
     await message.answer("Дані беруться з біржі <a href='https://www.binance.com'>Binance</a>.")
 
 # --- ЗАПУСК ---
+# --- ФУНКЦІЯ ДЛЯ RENDER (Щоб він думав, що це сайт) ---
+async def health_check(request):
+    return web.Response(text="Bot is alive!")
+
 async def main():
-    print("Бот з кнопками запущено! 🚀")
+    # 1. Налаштовуємо логування (щоб бачити помилки)
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    
+    # 2. Створюємо фейковий сервер
+    app = web.Application()
+    app.router.add_get('/', health_check)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    # Render сам дасть порт через змінну оточення PORT. Якщо ні - беремо 8080
+    port = int(os.environ.get("PORT", 8080))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    
+    print(f"🤖 Fake server started on port {port}. Starting bot...")
+
+    # 3. Запускаємо бота
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
